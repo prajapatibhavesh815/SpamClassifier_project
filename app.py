@@ -4,6 +4,7 @@ from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 import pickle
 import string
+import os
 
 app = Flask(__name__)
 
@@ -12,6 +13,7 @@ nltk.download('stopwords')
 
 ps = PorterStemmer()
 
+# Function to transform text
 def transform_text(text):
     text = text.lower()
     text = nltk.word_tokenize(text)
@@ -36,28 +38,36 @@ def transform_text(text):
 
     return " ".join(y)
 
+# Function to predict spam
 def predict_spam(message):
-    # Preprocess
     transformed_sms = transform_text(message)
-    # Vectorize
     vector_input = tfidf.transform([transformed_sms])
-    # Predict
     result = model.predict(vector_input)[0]
     return result
 
+# Home route
 @app.route('/')
 def home():
     return render_template('index.html')
 
+# Predict route
 @app.route('/predict', methods=['POST'])
 def predict():
     if request.method == 'POST':
         input_sms = request.form['message']
         result = predict_spam(input_sms)
-        return render_template('index.html', result=result)  # Pass 'result' to the template
-
+        return render_template('index.html', result=result)
 
 if __name__ == '__main__':
-    tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
-    model = pickle.load(open('model.pkl', 'rb'))
-    app.run(host='0.0.0.0')
+    # Define paths dynamically using os.path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    tfidf_path = os.path.join(current_dir, 'vectorizer.pkl')
+    model_path = os.path.join(current_dir, 'model.pkl')
+
+    # Load the model and vectorizer
+    tfidf = pickle.load(open(tfidf_path, 'rb'))
+    model = pickle.load(open(model_path, 'rb'))
+
+    # For production, use Waitress (comment the app.run line)
+    from waitress import serve
+    serve(app, host='0.0.0.0', port=8000)
